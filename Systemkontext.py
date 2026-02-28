@@ -1,14 +1,12 @@
 import streamlit as st
 import pandas as pd
+import hmac
 
 DATA_PATH = "CSVs/crm_results_for_tableau_final.csv"
 
 @st.cache_data
 def load_data(path):
     return pd.read_csv(path)
-
-import streamlit as st
-import hmac
 
 def require_password():
     if st.session_state.get("authenticated", False):
@@ -21,7 +19,7 @@ def require_password():
     pw = st.text_input("Passwort", type="password")
 
     if st.button("Anmelden"):
-        if hmac.compare_digest(pw, st.secrets["APP_PASSWORD"]):
+        if hmac.compare_digest(pw, st.secrets["DB_TOKEN"]):
             st.session_state.authenticated = True
             st.rerun()
         else:
