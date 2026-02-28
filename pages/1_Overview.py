@@ -1,5 +1,8 @@
 import streamlit as st
 from Systemkontext import ns_records, sf_records, total_records, total_pairs, total_suspected, category_counts
+from auth import require_auth
+
+require_auth()
 
 st.title("System Overview")
 
