@@ -9,6 +9,10 @@ from streamlit_UI.ui_components.pair_selectors import build_pair_label
 from streamlit_UI.ui_components.views import extract_system_record
 from streamlit_UI.ui_components.data_access import load_pairs
 
+from auth import require_auth
+
+require_auth()
+
 def render_review_queue():
 
     def save_state(state):
