@@ -1,0 +1,2 @@
+vorname_1,nachname_1,email_1,telefon_1,strasse_1,hausnr_1,plz_1,stadt_1,land_1,cluster_id_1,is_duplicated_1,source_1,block_key_1,vorname_2,nachname_2,email_2,telefon_2,strasse_2,hausnr_2,plz_2,stadt_2,land_2,cluster_id_2,is_duplicated_2,source_2,block_key_2
+Änne,Sorgatz,jseidel@example.net,+49(0)3531136752,Benthinring,913,80038,Magdeburg,D,883,,salesforce,Ä8,Änne,Sorgatz,jseidel@example.net,+49(0)3531136752,Benthinring,913,80038,Magdeburg,D,883,,netsuite,Ä8
