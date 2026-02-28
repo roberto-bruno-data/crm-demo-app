@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 
 from streamlit_UI.ui_components.constants import UI_RENAME
+from auth import require_auth
+require_auth()
 
 if "final_grs" not in st.session_state:
     st.session_state["final_grs"] = []
