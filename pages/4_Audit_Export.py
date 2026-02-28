@@ -1,6 +1,7 @@
 import streamlit as st
 import json
-
+from auth import require_auth
+require_auth()
 st.title("Audit Trail: Golden Record Entscheidungen")
 
 # ✅ immer initialisieren
