@@ -6,7 +6,7 @@ from datetime import datetime
 import streamlit_UI.ui_components.constants as constants
 from streamlit_UI.ui_components.filters import filter_identical_pairs, filter_side_bar
 from streamlit_UI.ui_components.pair_selectors import build_pair_label
-from streamlit_UI.ui_components.views import extract_system_record
+from streamlit_UI.ui_components.views import extract_system_record, get_default_source, load_config
 from streamlit_UI.ui_components.data_access import load_pairs
 
 from auth import require_auth
@@ -117,7 +117,9 @@ def render_review_queue():
     st.markdown("---")
     st.subheader("Modellbasierte Einschätzung")
 
-    
+    config = load_config()
+    settings = config.get("attribute_priority", {})
+
     c1, c2, c3 = st.columns([1,1,2])
 
     with c1:
@@ -143,6 +145,7 @@ def render_review_queue():
         "Auch identische Attribute anzeigen",
         value=True
     )
+    st.caption("⭐ = präferierte Quelle")
 
 
     def comparison_columns():
@@ -174,43 +177,76 @@ def render_review_queue():
 
         identical = val_sf == val_ns
 
-        # Init (einmal)
+        # ---- INITIALISIERUNG (nur einmal!) ----
         if lock_key not in st.session_state:
             st.session_state[lock_key] = identical
+
         if value_key not in st.session_state:
-            st.session_state[value_key] = val_sf if identical else None
+            if identical:
+                st.session_state[value_key] = val_sf
+            else:
+                preferred = get_default_source(attr, settings)
+
+                if preferred == "salesforce":
+                    st.session_state[value_key] = val_sf
+                elif preferred == "netsuite":
+                    st.session_state[value_key] = val_ns
+                else:
+                    st.session_state[value_key] = None
 
         locked = st.session_state[lock_key]
 
-        # Linke Status-Leiste (nur Anzeige)
-        status_bar(
-            col_bar,
-            locked=locked,
-            golden=all_locked
-        )
+        # ---- STATUS BAR ----
+        status_bar(col_bar, locked=locked, golden=all_locked)
 
-        # Inhalt
+        # ---- CONTENT ----
         col_attr.write(f"{index}. {attr}")
         col_sf.write(val_sf)
         col_ns.write(val_ns)
 
-        # Status-Icon
         if identical:
             col_status.write("✅")
         else:
             col_status.write("🔒" if locked else "❌")
 
-        # Decision (interaktiv nur wenn nicht locked)
+        # ---- DECISION ----
         if locked:
             col_decision.write(st.session_state[value_key] or "—")
+
         else:
+            reverse_map = {v: k for k, v in constants.UI_RENAME.items()}
+            technical_attr = reverse_map.get(attr)
+            preferred = get_default_source(technical_attr, settings)
+
+            sf_label = f"Salesforce: {val_sf}"
+            ns_label = f"NetSuite: {val_ns}"
+
+            if preferred == "salesforce":
+                sf_label = f"Salesforce ⭐: {val_sf}"
+            elif preferred == "netsuite":
+                ns_label = f"NetSuite ⭐: {val_ns}"
+
+            options = [
+                sf_label,
+                ns_label,
+                "Eigener Wert …"
+            ]
+
+            current_value = st.session_state.get(value_key)
+
+            if current_value == val_sf:
+                default_index = 0
+            elif current_value == val_ns:
+                default_index = 1
+            elif current_value:
+                default_index = 2
+            else:
+                default_index = 0
+
             choice = col_decision.selectbox(
                 "Quelle",
-                [
-                    f"Salesforce: {val_sf}",
-                    f"NetSuite: {val_ns}",
-                    "Eigener Wert …"
-                ],
+                options,
+                index=default_index,
                 key=f"select__{row_id}",
                 label_visibility="collapsed"
             )
@@ -226,7 +262,7 @@ def render_review_queue():
                     val_sf if choice.startswith("Salesforce") else val_ns
                 )
 
-        # Lock Checkbox (niemals value= zusammen mit key= setzen)
+        # ---- LOCK ----
         col_lock.checkbox(
             "Lock",
             key=lock_key,
@@ -298,11 +334,14 @@ def render_review_queue():
     with gr_col:
         st.markdown("### 🏆 Finaler Golden Record (bestätigte Attribute)")
         st.dataframe(
-            gr_df.style.set_properties(**{
-                "font-weight": "600",
-                "background-color": "#c99700",  # dunkles Gold
-                "color": "#111111"
-            }),
+            gr_df.style.set_properties(
+                subset=None,
+                **{
+                    "font-weight": "600",
+                    "background-color": "#c99700",
+                    "color": "#111111"
+                }
+            ),
             width="stretch"
         )
 
@@ -316,7 +355,7 @@ def render_review_queue():
             "➕\nZu Golden Records\nhinzufügen",
             key=f"add_gr__{selected_pair_id}",
             disabled=not all_locked,
-            width='stretch'
+            use_container_width=True
         ):
             if "final_grs" not in st.session_state:
                 st.session_state["final_grs"] = []
