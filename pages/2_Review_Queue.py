@@ -236,10 +236,19 @@ def render_review_queue():
 
             if current_value == val_sf:
                 default_index = 0
+
             elif current_value == val_ns:
                 default_index = 1
+
+            elif preferred == "salesforce":
+                default_index = 0
+
+            elif preferred == "netsuite":
+                default_index = 1
+
             elif current_value:
                 default_index = 2
+
             else:
                 default_index = 0
 

@@ -1,6 +1,7 @@
 import streamlit as st
-from Systemkontext import ns_records, sf_records, total_records, total_pairs, total_suspected, category_counts
+from Systemkontext import ns_records, sf_records, total_records, total_pairs, total_suspected, category_counts, chart_data
 from auth import require_auth
+import altair as alt
 
 require_auth()
 
@@ -33,7 +34,19 @@ col1.metric("Sichere Dubletten", category_counts["Sichere Dublette"])
 col2.metric("Wahrscheinliche Dubletten", category_counts["Wahrscheinliche Dublette"])
 col3.metric("Unklare Dubletten", category_counts["Unklare Dublette"])
 
-st.bar_chart(category_counts)
+chart = alt.Chart(chart_data).mark_bar().encode(
+    x=alt.X(
+        "Kategorie",
+        sort=[
+            "Sichere Dublette",
+            "Wahrscheinliche Dublette",
+            "Unklare Dublette",
+        ],
+    ),
+    y="Anzahl"
+)
+
+st.altair_chart(chart, use_container_width=True)
 
 if category_counts["Unklare Dublette"] > 0:
     st.info(

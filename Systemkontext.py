@@ -50,21 +50,22 @@ category_counts = {
     for cat in CATEGORIES
 }
 
+chart_data = pd.DataFrame({
+    "Kategorie": [
+        "Sichere Dublette",
+        "Wahrscheinliche Dublette",
+        "Unklare Dublette"
+    ],
+    "Anzahl": [
+        category_counts["Sichere Dublette"],
+        category_counts["Wahrscheinliche Dublette"],
+        category_counts["Unklare Dublette"]
+    ]
+})
+
 st.set_page_config(page_title="System Context & Scope")
 
 st.title("Erklärbare Dublettenerkennung: Systemkontext")
-
-st.info(
-    """
-**👉 Empfohlener Evaluationspfad:**
-
-- Start mit **Overview** (Systemkontext & Datenbasis)  
-- Wechsel zur **Review Queue** (zentrale Entscheidungsoberfläche)  
-- Treffen Sie eine manuelle Entscheidung zur Konsolidierung  
-- Prüfen Sie das Ergebnis unter **Golden Records**  
-- Nachvollziehbarkeit im **Audit Export**
-"""
-)
 
 st.markdown("""
 ### Anleitung & Evaluationshinweise (v0.1)
