@@ -1,5 +1,5 @@
 from erlib import explain
-from erlib.utils import normalize_shap_output
+from erlib.utils.shap_utils import normalize_shap_output
 
 import pandas as pd
 import json
