@@ -11,4 +11,17 @@ sys.path.insert(0, os.path.join(ROOT, "erlib", "src"))
 
 from thesis.streamlit_UI.Systemkontext import main
 
+import streamlit as st
+from sqlalchemy import create_engine
+from erlib.db.schema import initialize_database
+
+DATABASE_URL = st.secrets["DATABASE_URL"]
+
+engine = create_engine(
+    DATABASE_URL,
+    connect_args={"sslmode": "require"}
+)
+
+initialize_database(engine)
+
 main()
