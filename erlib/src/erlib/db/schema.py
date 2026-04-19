@@ -62,7 +62,7 @@ def initialize_database(engine):
     """
 
     create_review_queue = """
-    CREATE VIEW vw_review_queue AS
+    CREATE OR REPLACE VIEW vw_review_queue AS
     SELECT
     pf.pair_id,
     pf.run_id,
@@ -110,7 +110,7 @@ def initialize_database(engine):
     """
 
     golden_records = """
-    CREATE TABLE golden_records (
+    CREATE TABLE IF NOT EXISTS golden_records (
     id SERIAL PRIMARY KEY,
     run_id TEXT,
     cluster_id INTEGER,
@@ -122,7 +122,7 @@ def initialize_database(engine):
     """
 
     entity_clusters = """
-    CREATE TABLE entity_clusters (
+    CREATE TABLE IF NOT EXISTS entity_clusters (
         PRIMARY KEY (run_id, entity_id),
         run_id TEXT,
         entity_id INTEGER,
