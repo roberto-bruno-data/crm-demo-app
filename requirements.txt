@@ -13,3 +13,4 @@ jellyfish
 metaphone
 shap
 sqlalchemy
+psycopg2
