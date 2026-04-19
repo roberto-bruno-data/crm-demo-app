@@ -3,11 +3,11 @@ import os
 
 ROOT = os.path.dirname(__file__)
 
-# IMPORTANT: insert at position 0 (highest priority)
-sys.path.insert(0, os.path.join(ROOT, "erlib", "src"))
-
-# Optional but safe:
+# Make repo root importable
 sys.path.insert(0, ROOT)
+
+# Make erlib (src layout) importable
+sys.path.insert(0, os.path.join(ROOT, "erlib", "src"))
 
 from thesis.streamlit_UI.Systemkontext import main
 
