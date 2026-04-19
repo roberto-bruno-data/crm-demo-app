@@ -1,0 +1,6 @@
+-e ./erlib
+streamlit
+pandas
+numpy
+scikit-learn
+joblib
