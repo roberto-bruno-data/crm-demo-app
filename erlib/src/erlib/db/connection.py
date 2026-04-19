@@ -1,5 +1,6 @@
+import os
 from sqlalchemy import create_engine
 
-DB_URL = "postgresql://rob:postgres@localhost:5432/crm_system"
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-engine = create_engine(DB_URL)
+engine = create_engine(DATABASE_URL)
