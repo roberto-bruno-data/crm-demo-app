@@ -40,7 +40,7 @@ def load_cluster_data(run_id, include_resolved, demo_mode):
     return setup_cluster_data(run_id, engine, include_resolved, demo_mode)
 
 def main():
-    # require_auth()
+    require_auth()
     apply_theme()
     st.title("Dublettenerkennung: Review")
 
