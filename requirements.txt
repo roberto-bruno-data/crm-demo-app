@@ -7,3 +7,4 @@ joblib
 PyYAML
 faker
 networkx
+tqdm
