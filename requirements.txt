@@ -9,3 +9,7 @@ faker
 networkx
 tqdm
 rapidfuzz
+jellyfish
+metaphone
+sklearn
+re
