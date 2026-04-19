@@ -1,0 +1,435 @@
+/* ===== GLOBAL ===== */
+.stApp {
+    background-color: #111827;
+    color: #e5e7eb;
+}
+
+h1, h2, h3, h4, h5, h6, p, span, label {
+    color: #e5e7eb !important;
+}
+
+/* ===== HEADER ===== */
+header[data-testid="stHeader"] {
+    background-color: #111827 !important;
+    border-bottom: 1px solid #1f2937 !important;
+}
+
+div[data-testid="stToolbar"] {
+    background-color: #111827 !important;
+}
+
+button[kind="header"] {
+    color: #e5e7eb !important;
+}
+
+/* ===== SIDEBAR (jetzt klar getrennt) ===== */
+section[data-testid="stSidebar"] {
+    background-color: #0b1220 !important;
+    border-right: 1px solid #1f2937;
+}
+
+section[data-testid="stSidebar"] * {
+    color: #cbd5e1 !important;
+}
+
+/* ===== CONTAINER ===== */
+div[data-testid="stVerticalBlock"] > div {
+    background-color: transparent;
+}
+
+/* ===== INPUTS ===== */
+/* Nur echte sichtbare Inputs */
+div[data-baseweb="input"] input,
+textarea {
+    background-color: #1f2937 !important;
+    color: #e5e7eb !important;
+    border: 1px solid #374151 !important;
+    border-radius: 8px;
+}
+
+div[data-testid="stTextInput"] input {
+    background-color: #1f2937 !important;
+    color: #e5e7eb !important;
+}
+
+/* ===== BUTTONS ===== */
+.stButton > button:hover {
+    background-color: #374151;
+}
+
+/* ===== RADIO ===== */
+div[role="radiogroup"] {
+    background-color: #0f172a;
+    padding: 0.5rem;
+    border-radius: 8px;
+}
+
+/* ===== DATAFRAME ===== */
+.stDataFrame {
+    background-color: #111827;
+}
+
+/* ===== CHECKBOX ===== */
+.stCheckbox {
+    color: #e5e7eb;
+}
+
+/* ===== SELECTBOX CLEAN ===== */
+div[data-baseweb="select"] > div {
+    background-color: #1f2937 !important;
+    border: 1px solid #374151 !important;
+    border-radius: 8px !important;
+    box-shadow: none !important;
+}
+
+div[data-baseweb="select"] svg {
+    color: #e5e7eb !important;
+}
+
+div[data-baseweb="select"] > div > div {
+    border-left: none !important;
+}
+
+div[data-baseweb="select"] > div > div:last-child {
+    border-left: none !important;
+}
+
+/* 💀 INPUT (der Übeltäter) */
+div[data-baseweb="select"] input {
+    background: transparent !important;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    caret-color: auto !important;  /* WICHTIG */
+    cursor: pointer !important;
+}
+
+div[data-baseweb="select"] input:focus {
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+div[data-baseweb="select"] div[role="combobox"] + div {
+    border-left: none !important;
+}
+
+/* Selectbox spezifischer targeten */
+div[data-baseweb="select"] div[role="combobox"] input {
+    caret-color: auto !important;
+}
+
+hr {
+    border: none !important;
+    height: 1px;
+    background-color: #1f2937 !important;
+    margin: 0.5rem 0 !important;
+}
+
+/* Streamlit Divider */
+div[data-testid="stDivider"] {
+    background-color: #1f2937 !important;
+    height: 1px !important;
+}
+
+/* Pill Container */
+.pill-row {
+    display: flex;
+    gap: 6px;
+}
+
+/* Jeder Button gleich breit */
+.pill-row button {
+    flex: 1 !important;
+    border-radius: 999px !important;
+    border: 1px solid #374151 !important;
+    background-color: #1f2937 !important;
+    color: #e5e7eb !important;
+    font-size: 0.85rem;
+    padding: 0.35rem 0.5rem;
+}
+
+/* Hover */
+.pill-row button:hover {
+    background-color: #374151 !important;
+}
+
+/* Selected */
+.pill-selected button {
+    background-color: #2563eb !important;
+    border: 1px solid #3b82f6 !important;
+    color: white !important;
+}
+
+/* Pills / Buttons vereinheitlichen */
+.stButton > button {
+    height: 42px !important;
+    min-height: 42px !important;
+    padding: 0 12px !important;
+
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+
+    border-radius: 10px !important;
+}
+
+/* Buttons gleich breit innerhalb Columns */
+div[data-testid="column"] .stButton {
+    width: 100%;
+}
+.stButton > button {
+    height: 42px !important;
+    min-height: 42px !important;
+    padding: 0 12px !important;
+
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+
+    border-radius: 10px !important;
+
+    /* 👉 DAS ist der entscheidende Fix */
+    line-height: 1 !important;
+    background-color: grey;
+}
+
+.stButton > button:has(span:only-child) {
+    font-size: 18px !important;
+    line-height: 1 !important;
+}
+
+div.stButton > button[kind="primary"] {
+    background-color: #16a34a !important;  /* grün */
+    border: 1px solid #16a34a !important;
+    color: white !important;
+}
+
+.custom-divider {
+    height: 1px;
+    background: #1f2937;
+    margin: 0.5rem 0;
+}
+
+/* ===== FIX: Scoped Inputs ===== */
+
+/* Nur echte TextInputs (nicht FileUploader etc.) */
+div[data-testid="stTextInput"] div[data-baseweb="input"] > div {
+    background-color: #1f2937 !important;
+    border-radius: 999px !important;
+    border: 1px solid #374151 !important;
+}
+
+/* Input Text */
+div[data-testid="stTextInput"] input {
+    color: #f9fafb !important;
+    font-size: 14px;
+    padding-left: 10px;
+}
+
+/* Placeholder */
+div[data-testid="stTextInput"] input::placeholder {
+    color: #9ca3af !important;
+}
+
+/* Fokus */
+div[data-testid="stTextInput"] input:focus {
+    outline: none !important;
+    box-shadow: 0 0 0 1px #60a5fa !important;
+}
+
+
+/* ===== FIX: Selectbox (sauber & stabil) ===== */
+
+div[data-baseweb="select"] > div {
+    background-color: #1f2937 !important;
+    border: 1px solid #374151 !important;
+    border-radius: 8px !important;
+    box-shadow: none !important;
+}
+
+div[data-baseweb="select"] svg {
+    color: #e5e7eb !important;
+}
+
+/* Nur das eigentliche Input-Feld */
+div[data-baseweb="select"] div[role="combobox"] input {
+    background: transparent !important;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    caret-color: auto !important;
+}
+
+/* ===== FIX: FileUploader ===== */
+
+section[data-testid="stFileUploader"] > div {
+    background-color: #1f2937 !important;
+    border: 1px solid #374151 !important;
+    border-radius: 10px !important;
+}
+
+section[data-testid="stFileUploader"] button {
+    background-color: #374151 !important;
+    color: #e5e7eb !important;
+    border-radius: 8px !important;
+}
+
+section[data-testid="stFileUploader"] span {
+    color: #9ca3af !important;
+}
+
+/* ===== FIX: Streamlit Upload Container (der graue Flex-Wrapper) ===== */
+section[data-testid="stFileUploaderDropzone"] {
+    background-color: transparent !important;
+    padding: 0 !important;
+    gap: 0 !important;
+}
+
+/* Innerer Wrapper fixen */
+section[data-testid="stFileUploaderDropzone"] > div {
+    background-color: #1f2937 !important;
+    border: 1px solid #374151 !important;
+    border-radius: 10px !important;
+    padding: 0.75rem !important;
+}
+
+/* Upload + Button gleiche Höhe / Alignment */
+section[data-testid="stFileUploader"] {
+    display: flex;
+    align-items: center;
+}
+
+/* ===== FINAL FIX: innerer Upload Container ===== */
+section[data-testid="stFileUploaderDropzone"] > div {
+    background-color: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+}
+
+/* ===== FIX: Upload Button selbst (der weiße Button) ===== */
+button[data-testid="stBaseButton-secondary"] {
+    background-color: #374151 !important;
+    color: #e5e7eb !important;
+    border: 1px solid #374151 !important;
+    border-radius: 8px !important;
+}
+
+/* Hover */
+button[data-testid="stBaseButton-secondary"]:hover {
+    background-color: #4b5563 !important;
+}
+
+button[data-testid="stBaseButton-secondary"] {
+    height: 42px !important;
+    padding: 0 12px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+/* ===== FIX: Default Upload Hint entfernen ===== */
+div[data-testid="stFileUploaderDropzoneInstructions"] {
+    display: none !important;
+}
+
+/* ===== ALIGN TOP: Columns sauber ausrichten ===== */
+div[data-testid="column"] > div {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+}
+
+/* 🔥 FIX LOGIN INPUT WRAPPER */
+div[data-testid="stTextInput"] > div {
+    background-color: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+}
+
+div[data-testid="stTextInput"] input {
+    background-color: #1f2937 !important;
+    border: 1px solid #374151 !important;
+    border-radius: 10px !important;
+    height: 44px !important;
+}
+
+/* ===== GLIDE DATAFRAME DARK MODE (RICHTIG) ===== */
+
+/* ===== FORCE OVERRIDE GLIDE ===== */
+
+/* 🚀 FINAL WORKING FIX */
+/* 🔥 FINAL: Glide DataFrame Dark Mode */
+/* 🔥 FINAL BOSS FIX: Glide inline override */
+div[style*="--gdg-bg-cell"] {
+    --gdg-bg-cell: #0f172a !important;
+    --gdg-bg-cell-medium: #0f172a !important;
+    --gdg-bg-header: #1f2937 !important;
+
+    --gdg-text-dark: #e5e7eb !important;
+    --gdg-text-medium: #cbd5e1 !important;
+    --gdg-text-light: #9ca3af !important;
+
+    --gdg-border-color: #1f2937 !important;
+    --gdg-horizontal-border-color: #1f2937 !important;
+}
+
+div[data-testid="stDataFrameResizable"] {
+    background-color: #0f172a !important;
+    border: 1px solid #1f2937 !important;
+    border-radius: 10px !important;
+}
+
+/* Hover schöner */
+.stDataFrame div[role="row"]:hover div[role="gridcell"] {
+    background-color: #1f2937 !important;
+}
+
+/* Header stärker */
+.stDataFrame div[role="columnheader"] {
+    font-weight: 600 !important;
+}
+
+/* 🔥 FIX: Streamlit Container um DataFrame */
+div[data-testid="stElementContainer"] {
+    background-color: transparent !important;
+}
+
+/* 🔥 FINAL FIX: sichtbarer Select-Wert */
+div[data-baseweb="select"] div[value] {
+    color: #e5e7eb !important;
+}
+
+/* Innerer Frame */
+div[data-testid="stDataFrame"] {
+    background-color: #0f172a !important;
+    border-radius: 10px !important;
+}
+
+/* 🔥 Dropdown Menü Hintergrund */
+div[data-baseweb="popover"] {
+    background-color: #1f2937 !important;
+}
+
+/* Container der Optionen */
+ul[role="listbox"] {
+    background-color: #1f2937 !important;
+    border: 1px solid #374151 !important;
+    border-radius: 8px !important;
+}
+
+/* Einzelne Optionen */
+li[role="option"] {
+    background-color: #1f2937 !important;
+    color: #e5e7eb !important;
+}
+
+/* Hover */
+li[role="option"]:hover {
+    background-color: #374151 !important;
+}
+
+/* Ausgewählte Option */
+li[aria-selected="true"] {
+    background-color: #2563eb !important;
+    color: white !important;
+}

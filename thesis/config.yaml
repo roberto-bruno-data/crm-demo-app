@@ -1,0 +1,19 @@
+salesforce:
+  base_url: "http://localhost:8001/salesforce"
+  token: "fake-token"
+
+netsuite:
+  base_url: "http://localhost:8002/netsuite"
+  token: "fake-token"
+
+data_generation:
+  n_dirty: 100
+  n_clean: 900
+  dirty_seed: 1
+  clean_seed: 2
+  persist: false
+
+pairing:
+  name_col: vorname
+  postal_col: plz
+  max_block_size: 1000

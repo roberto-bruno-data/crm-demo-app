@@ -1,8 +1,0 @@
-streamlit
-pandas
-numpy
-pyYAML
-<<<<<<< HEAD
-=======
-altair
->>>>>>> 9cc7f8b (Bugfixes)
