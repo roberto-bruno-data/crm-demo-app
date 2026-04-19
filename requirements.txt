@@ -11,3 +11,4 @@ tqdm
 rapidfuzz
 jellyfish
 metaphone
+shap
