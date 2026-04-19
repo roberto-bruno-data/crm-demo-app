@@ -12,3 +12,4 @@ rapidfuzz
 jellyfish
 metaphone
 shap
+sqlalchemy
