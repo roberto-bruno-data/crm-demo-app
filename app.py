@@ -15,6 +15,8 @@ import streamlit as st
 from sqlalchemy import create_engine
 from erlib.db.schema import initialize_database
 
+st.set_page_config(page_title="Systemkontext", layout="wide")
+
 DATABASE_URL = st.secrets["DATABASE_URL"]
 
 engine = create_engine(
