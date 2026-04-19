@@ -1,0 +1,1 @@
+If you think about it, in the vast majority of cases legends are supposed to stay legends.
