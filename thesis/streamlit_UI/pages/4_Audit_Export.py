@@ -107,7 +107,7 @@ else:
                 weakest = pair_evidence.get("weakest", [])
 
                 if strongest:
-                    with st.expander("Stärkste Verbindungen"):
+                    with st.expander("Stärkste Verbindung"):
                         st.dataframe(pd.DataFrame(strongest), width="stretch")
 
                 if weakest:

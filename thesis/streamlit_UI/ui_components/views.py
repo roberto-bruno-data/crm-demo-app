@@ -2,29 +2,24 @@ import pandas as pd
 from pathlib import Path
 import yaml
 import streamlit as st
-from thesis.streamlit_UI.ui_components.constants import UI_RENAME
+from ui_components.constants import UI_RENAME
 from erlib.db import engine, get_latest_run_id, get_harmonized_entities, get_review_queue, get_resolved_count, load_pairs_from_db, get_resolved_cluster_ids
 from thesis.logic.cluster_service import get_cluster_entities_df, get_clusters, format_cluster_with_names
 from thesis.logic.cluster_metrics import compute_cluster_score
 from thesis.logic.helpers import render_divider, is_attr_locked
-from thesis.streamlit_UI.ui_components.pair_selectors import render_cluster_attribute, render_pair_selector, get_selected_pair
-from thesis.streamlit_UI.ui_components.record_preparation import prepare_records, build_model_info
+from ui_components.pair_selectors import render_cluster_attribute, render_pair_selector, get_selected_pair
+from ui_components.record_preparation import prepare_records, build_model_info
 from erlib.utils.constants import ATTRIBUTES
 from thesis.logic.golden_record_service import build_golden_record
-from thesis.streamlit_UI.ui_components.golden_record import render_golden_record_panel
+from ui_components.golden_record import render_golden_record_panel, get_cluster_status
 from thesis.config.preferences import load_preferences, save_preferences
+from thesis.logic.golden_record_service import resolve_attribute
 
 @st.cache_data
-def load_data(run_id, _engine, include_resolved):
+def load_data(run_id, _engine):
     review_df = get_review_queue(run_id, _engine)
 
     cluster_df = get_clusters(run_id, _engine)
-
-    if not include_resolved:
-        resolved_clusters = get_resolved_cluster_ids(run_id, _engine)
-        cluster_df = cluster_df[
-            ~cluster_df["cluster_id"].isin(resolved_clusters)
-        ]
 
     valid_entity_ids = set(cluster_df["entity_id"])
 
@@ -49,7 +44,7 @@ def load_config():
 def get_default_source(attr, settings):
     return settings.get(attr)
 
-def render_model_section(model_info):
+def render_model_section(model_info, selected_row=None):
     st.markdown("---")
     st.subheader("Modellbasierte Einschätzung")
 
@@ -65,8 +60,24 @@ def render_model_section(model_info):
         st.markdown("**Kurzbegründung**")
         st.write(model_info["similarity_sentence"])
 
-    with st.expander("🔍 Modell-Details & Erklärungen"):
+    with st.expander("🔍 Modell-Details, Erklärungen & Originaldaten (Pair)"):
+        st.markdown("**Detaillierte Erklärung**")
         st.write(model_info["detailed_explanation"])
+
+        if selected_row is not None:
+            st.markdown("**Originaldaten des Paares**")
+
+            cols_1 = [c for c in selected_row.index if c.endswith("_1")]
+
+            data = {
+                "Attribut": [c.replace("_1", "") for c in cols_1],
+                "Datensatz A": [selected_row[c] for c in cols_1],
+                "Datensatz B": [selected_row[c.replace("_1", "_2")] for c in cols_1],
+            }
+
+            df = pd.DataFrame(data)
+
+            st.dataframe(df, width='stretch')
 
 def render_comparison_table(
     salesforce_df,
@@ -241,8 +252,8 @@ def render_comparison_table(
     
     return visible_attrs
 
-def load_base_data(run_id, engine, include_resolved):
-    data = load_data(run_id, engine, include_resolved)
+def load_base_data(run_id, engine):
+    data = load_data(run_id, engine)
 
     review_df = data["review_df"]
     cluster_df = get_clusters(run_id, engine)
@@ -282,6 +293,7 @@ def compute_cluster_scores(cluster_df, review_df, run_id, engine):
         metrics = compute_cluster_score(cluster_pairs, len(entity_ids))
 
         scores.append({
+            "run_id": run_id,
             "cluster_id": cid,
             "size": len(entity_ids),
             "score": metrics["score"]
@@ -296,20 +308,11 @@ def filter_pairs(review_df, threshold):
     return review_df[review_df["prob"] >= threshold]
 
 def render_global_settings():
-    if "include_resolved" not in st.session_state:
-        st.session_state.include_resolved = False
 
     if "demo_mode" not in st.session_state:
         st.session_state.demo_mode = True
 
     st.subheader("⚙️ Einstellungen")
-
-    st.checkbox(
-        "Bereits verarbeitete Fälle anzeigen",
-        key="include_resolved"
-    )
-
-    include_resolved = st.session_state.include_resolved
 
     st.checkbox(
         "Demo-Modus (inkl. schwache Verbindungen)",
@@ -318,10 +321,10 @@ def render_global_settings():
 
     demo_mode = st.session_state.demo_mode
 
-    return include_resolved, demo_mode
+    return demo_mode
 
-def setup_cluster_data(run_id, engine, include_resolved, threshold):
-    review_df, cluster_df, entities_df = load_base_data(run_id, engine, include_resolved)
+def setup_cluster_data(run_id, engine, threshold):
+    review_df, cluster_df, entities_df = load_base_data(run_id, engine)
     review_df = filter_pairs(review_df, threshold)
 
     if cluster_df.empty:
@@ -381,6 +384,17 @@ def setup_cluster_data(run_id, engine, include_resolved, threshold):
     return review_df, cluster_scores_df, cluster_with_names, cluster_df
 
 def render_global_sidebar():
+    if "threshold_matches_applied" not in st.session_state:
+        prefs = load_preferences()
+        st.session_state.threshold_matches_applied = prefs.get("threshold_matches", 0.8)
+
+    if "demo_mode" not in st.session_state:
+        prefs = load_preferences()
+        st.session_state.demo_mode = prefs.get("demo_mode", True)
+
+    if "last_saved_demo_mode" not in st.session_state:
+        st.session_state.last_saved_demo_mode = st.session_state.demo_mode
+
     with st.sidebar:
 
         run_id = st.session_state.get("run_id")
@@ -403,20 +417,12 @@ def render_global_sidebar():
             prefs = load_preferences()
             st.session_state.demo_mode = prefs.get("demo_mode", True)
 
-        if "last_saved_demo_mode" not in st.session_state:
-            st.session_state.last_saved_demo_mode = None
-
         if st.session_state.demo_mode != st.session_state.last_saved_demo_mode:
             save_preferences({
                 **load_preferences(),
                 "demo_mode": st.session_state.demo_mode
             })
             st.session_state.last_saved_demo_mode = st.session_state.demo_mode
-
-        include_resolved = st.checkbox(
-            "Bereits verarbeitete Fälle anzeigen",
-            key="include_resolved"
-        )
 
         demo_mode = st.checkbox(
             "Demo-Modus (inkl. schwache Verbindungen)",
@@ -496,6 +502,11 @@ def render_global_sidebar():
             
             if st.button("Übernehmen"):
                 st.session_state.threshold_matches_applied = st.session_state.threshold_matches_ui
+ 
+                save_preferences({
+                    **load_preferences(),
+                    "threshold_matches": st.session_state.threshold_matches_applied
+                })
 
         # ✅ NOW compute effective value
         effective_threshold = 0.3 if demo_mode else st.session_state.threshold_matches_applied
@@ -506,9 +517,9 @@ def render_global_sidebar():
         else:
             st.caption(f"Aktiver Match-Schwellenwert: ≥ {effective_threshold:.2f}")
 
-        return include_resolved, effective_threshold
+        return effective_threshold, auto_merge_threshold
 
-def render_cluster_context(cluster_scores_df, cluster_with_names):
+def render_cluster_context(cluster_scores_df, cluster_with_names, run_id,               show_reviewed=False):
 
     st.markdown("### 🔍 Cluster auswählen")
 
@@ -516,6 +527,27 @@ def render_cluster_context(cluster_scores_df, cluster_with_names):
         by=["size", "score"],
         ascending=[False, False]
     )
+
+    st.caption("Format: Cluster-ID · Größe · Score · Beispielnamen")
+
+    status_df = get_cluster_status(run_id, engine)
+
+    cluster_scores_df = cluster_scores_df.merge(
+        status_df,
+        on=["run_id", "cluster_id"],
+        how="left"
+    )
+
+    cluster_scores_df["status"] = cluster_scores_df["status"].fillna("open")
+
+    if show_reviewed:
+        cluster_scores_df = cluster_scores_df[
+            cluster_scores_df["status"] == "reviewed"
+        ]
+    else:
+        cluster_scores_df = cluster_scores_df[
+            cluster_scores_df["status"] != "reviewed"
+        ]
 
     cluster_options = cluster_scores_df["cluster_id"].tolist()
 
@@ -529,20 +561,31 @@ def render_cluster_context(cluster_scores_df, cluster_with_names):
 
     return selected_cluster
 
-def render_review_queue(include_resolved, run_id, cluster_pairs,
-    selected_cluster, cluster_entities_df, threshold):
+def render_review_queue(run_id, cluster_pairs,
+    selected_cluster, cluster_entities_df, effective_threshold, auto_merge_threshold, score,
+    cluster_df):
 
     render_divider()
 
     st.markdown("### 🔗 Cluster Überblick")
+    st.caption(
+        "Dieser Bereich zeigt die Stärke der Verbindungen innerhalb des Clusters. "
+        "Hohe Werte sprechen für konsistente Dubletten, niedrige Werte können auf fehlerhafte Verknüpfungen hinweisen."
+    )
     st.caption(f"{len(cluster_entities_df)} Datensätze im Cluster")
 
     top_prob = cluster_pairs["prob"].max()
     avg_prob = cluster_pairs["prob"].mean()
 
-    col1, col2 = st.columns(2)
-    col1.metric("Max. Match-Wahrscheinlichkeit", f"{top_prob:.2f}")
-    col2.metric("Ø Wahrscheinlichkeit", f"{avg_prob:.2f}")
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Stärkste Verbindung", f"{top_prob:.2f}")
+    col2.metric("Durchschnitt", f"{avg_prob:.2f}")
+    col3.metric("Schwächste Verbindung", f"{cluster_pairs['prob'].min():.2f}")
+
+    st.caption(
+        "Prüfen Sie insbesondere Cluster mit niedriger durchschnittlicher Wahrscheinlichkeit "
+        "oder einzelnen schwachen Verbindungen."
+    )
 
     # ===== DATAFRAME PREP =====
     df = (
@@ -591,11 +634,38 @@ def render_review_queue(include_resolved, run_id, cluster_pairs,
     _, _, sf_snapshot, ns_snapshot, _ = prepare_records(selected_row)
     model_info = build_model_info(selected_row)
 
-    render_model_section(model_info)
+    render_model_section(model_info, selected_row)
 
     render_divider()
 
     st.markdown("### 🧩 Attribute auswählen")
+
+    # --- AUTO MERGE DECISION ---
+    can_merge = score >= auto_merge_threshold
+
+    if can_merge:
+        st.success(
+            f"Auto-Merge möglich: Cluster-Score {score:.2f} ≥ Schwellenwert {auto_merge_threshold:.2f}"
+        )
+    else:
+        st.info(f"Auto-Merge nicht verfügbar (benötigt Score ≥ {auto_merge_threshold:.2f})")
+
+    label = f"⚡ Auto-Merge (Score ≥ {auto_merge_threshold:.2f})"
+
+    st.write("") 
+    
+    if st.button(
+        label,
+        type="primary",
+        disabled=not can_merge
+    ):
+        auto_merge_cluster(
+            selected_cluster,
+            cluster_entities_df,
+            ATTRIBUTES
+        )
+        st.success("Auto-Merge durchgeführt")
+        st.rerun()
 
     show_identical = st.checkbox(
         "Identische Attribute anzeigen",
@@ -604,12 +674,8 @@ def render_review_queue(include_resolved, run_id, cluster_pairs,
 
     with st.expander("Hinweise"):
         st.caption("⭐ = häufigster Wert im Cluster (Empfehlung)")
+        st.caption("Auto-Merge: Alle Attribute werden auf den häufigsten Wert gesetzt und gesperrt")
         st.caption("Wählen Sie für jedes Attribut den besten Wert für den Golden Record.")
-
-        if include_resolved:
-            st.caption("Zeigt alle Paare (inkl. bereits entschiedene)")
-        else:
-            st.caption("Zeigt nur offene Fälle")
 
     all_attrs = set(ATTRIBUTES)
        
@@ -654,7 +720,19 @@ def render_review_queue(include_resolved, run_id, cluster_pairs,
     context_id = selected_cluster
 
     render_golden_record_panel(golden_record, context_id, run_id,
-                               model_info, sf_snapshot, ns_snapshot, engine, cluster_entities_df, threshold, cluster_pairs)
+                               model_info, sf_snapshot, ns_snapshot, engine, cluster_entities_df, effective_threshold, cluster_pairs, cluster_df)
     
 def get_active_run_id():
     return st.session_state.get("run_id") or get_latest_run_id(engine)
+
+def auto_merge_cluster(cluster_id, cluster_entities_df, attributes):
+    for attr in attributes:
+        values = cluster_entities_df[attr].tolist()
+
+        value, locked = resolve_attribute(values)
+
+        # 👉 Werte in Session State setzen (dein bestehendes Schema!)
+        st.session_state[f"value__{cluster_id}__{attr}"] = value
+
+        if locked:
+            st.session_state[f"user_lock__{cluster_id}__{attr}"] = True

@@ -1,2 +1,3 @@
 auto_merge_threshold: 0.5
 demo_mode: false
+threshold_matches: 0.75

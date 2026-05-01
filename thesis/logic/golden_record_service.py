@@ -218,3 +218,20 @@ def build_entity_explanations(cluster_pairs):
         }
 
     return explanations
+
+def set_cluster_status(run_id, cluster_id, status, engine):
+    query = text("""
+        INSERT INTO cluster_status (run_id, cluster_id, status)
+        VALUES (:run_id, :cluster_id, :status)
+        ON CONFLICT (run_id, cluster_id)
+        DO UPDATE SET 
+            status = EXCLUDED.status,
+            updated_at = CURRENT_TIMESTAMP
+    """)
+
+    with engine.begin() as conn:
+        conn.execute(query, {
+            "run_id": run_id,
+            "cluster_id": cluster_id,
+            "status": status
+        })

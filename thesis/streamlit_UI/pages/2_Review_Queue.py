@@ -1,6 +1,6 @@
 import streamlit as st
 from thesis.streamlit_UI.ui_components.auth import require_auth
-from erlib.db import engine, get_latest_run_id
+from erlib.db import engine, get_latest_run_id, get_golden_records
 from thesis.streamlit_UI.ui_components.views import (
     setup_cluster_data,
     render_global_sidebar,
@@ -10,10 +10,18 @@ from thesis.streamlit_UI.ui_components.views import (
     compute_cluster_scores,
     filter_pairs,
     filter_clusters,
-    enrich_cluster_with_names
+    enrich_cluster_with_names,
+    render_pair_selector,
+    get_selected_pair,
+    render_model_section,
+    render_divider,
+    get_cluster_status
 )
+from thesis.logic.golden_record_service import set_cluster_status 
 from thesis.streamlit_UI.ui_components.theme import apply_theme
 from thesis.logic.cluster_service import render_cluster_metrics_and_merge_section
+import pandas as pd
+from thesis.streamlit_UI.ui_components.record_preparation import prepare_records, build_model_info
 
 st.set_page_config(
     layout="wide",
@@ -30,25 +38,29 @@ def apply_threshold(review_df, cluster_scores_df, threshold):
     return review_df_filtered, cluster_scores_filtered
 
 @st.cache_data(show_spinner=False)
-def load_full_data(run_id, include_resolved):
-    review_df, cluster_df, entities_df = load_base_data(run_id, engine, include_resolved)
+def load_full_data(run_id):
+    review_df, cluster_df, entities_df = load_base_data(run_id, engine)
     cluster_scores_df = compute_cluster_scores(cluster_df, review_df, run_id, engine)
     return review_df, cluster_df, entities_df, cluster_scores_df
 
 @st.cache_data(show_spinner=False)
-def load_cluster_data(run_id, include_resolved, demo_mode):
-    return setup_cluster_data(run_id, engine, include_resolved, demo_mode)
+def load_cluster_data(run_id, demo_mode):
+    return setup_cluster_data(run_id, engine, demo_mode)
 
 def main():
-    require_auth()
+    # require_auth()
     apply_theme()
-    st.title("Dublettenerkennung: Review")
+
+    st.title("Dublettenerkennung")
+    st.caption("Review von Entity-Clustern")
+
+    tab_open, tab_reviewed = st.tabs(["🟢 Offene Cluster", "✅ Geprüfte Cluster"])
 
     run_id = get_latest_run_id(engine)
-    include_resolved, effective_threshold = render_global_sidebar()
+    effective_threshold, auto_merge_threshold = render_global_sidebar()
 
     review_df, cluster_df, entities_df, cluster_scores_df = load_full_data(
-        run_id, include_resolved
+        run_id
     )
 
     review_df, cluster_scores_df = apply_threshold(
@@ -63,46 +75,115 @@ def main():
         st.info("Keine Cluster für die aktuelle Einstellung vorhanden.")
         st.stop()
 
-    selected_cluster = render_cluster_context(
-        cluster_scores_df,
-        cluster_with_names
-    )
+    with tab_open:
+        selected_cluster = render_cluster_context(
+            cluster_scores_df,
+            cluster_with_names,
+            run_id
+        )
 
-    cluster_row = cluster_scores_df[
-        cluster_scores_df["cluster_id"] == selected_cluster
-    ].iloc[0]
+        st.write("---")
 
-    col1, col2, col3 = st.columns(3)
+        st.markdown(f"### 🔗 Cluster #{selected_cluster}")
 
-    with col1:
-        st.metric("Cluster-Größe", cluster_row["size"])
+        cluster_pairs, cluster_entities_df, score = render_cluster_metrics_and_merge_section(
+            selected_cluster,
+            run_id,
+            engine,
+            review_df,
+            cluster_df,
+            cluster_scores_df
+        )
 
-    with col2:
-        st.metric("Score", f"{cluster_row['score']:.3f}")
+        st.markdown("### 🧾 Review & Entscheidung")
+        render_review_queue(
+            run_id=run_id,
+            cluster_pairs=cluster_pairs,
+            selected_cluster=selected_cluster,
+            cluster_entities_df=cluster_entities_df,
+            effective_threshold=effective_threshold,   # 👈 THIS is the correct variable,
+            auto_merge_threshold=auto_merge_threshold,
+            score = score,
+            cluster_df=cluster_df
+        )
+    
+    with tab_reviewed:
+        selected_cluster = render_cluster_context(
+            cluster_scores_df,
+            cluster_with_names,
+            run_id,
+            show_reviewed=True
+        )
 
-    with col3:
-        st.metric("Threshold", f"{effective_threshold:.2f}")
+        render_cluster_metrics_and_merge_section(
+            selected_cluster,
+            run_id,
+            engine,
+            review_df,
+            cluster_df,
+            cluster_scores_df
+        )
 
+        if not selected_cluster:
+            st.info("Keine geprüften Cluster vorhanden.")
+            st.stop()
 
-    cluster_pairs, cluster_entities_df = render_cluster_metrics_and_merge_section(
-        selected_cluster,
-        run_id,
-        engine,
-        review_df,
-        cluster_df,
-        cluster_scores_df
-    )
+        st.markdown("### 🔎 Pair auswählen")
+        selected_pair_id = render_pair_selector(
+            cluster_pairs,
+            key_suffix=f"{selected_cluster}_{len(cluster_pairs)}"
+        )
 
+        if selected_pair_id is None:
+            st.info("Keine Paare im Cluster vorhanden.")
+            return
 
-    st.markdown("### 🧾 Review & Entscheidung")
-    render_review_queue(
-        include_resolved=include_resolved,
-        run_id=run_id,
-        cluster_pairs=cluster_pairs,
-        selected_cluster=selected_cluster,
-        cluster_entities_df=cluster_entities_df,
-        threshold=effective_threshold   # 👈 THIS is the correct variable
-    )
+        selected_row = get_selected_pair(cluster_pairs, selected_pair_id)
+        st.markdown("### 🤖 Modellbewertung")
+
+        _, _, sf_snapshot, ns_snapshot, _ = prepare_records(selected_row)
+        model_info = build_model_info(selected_row)
+
+        render_model_section(model_info, selected_row)
+
+        render_divider()
+
+        if run_id:
+            golden_records = get_golden_records(run_id, engine)
+            golden_record = golden_records[golden_records["cluster_id"] == selected_cluster]
+            if not golden_record.empty:
+                col1, col2 = st.columns([2, 1])
+                with col1:
+                    golden_record = golden_record.iloc[0]
+                    st.markdown("### 🏆 Golden Record")
+                    gr_df = pd.DataFrame(golden_record["golden_record"], index=["Golden Record"]).T
+                    st.dataframe(gr_df)
+                with col2:
+                    st.markdown("### 🔄 Status ändern")
+                    render_status_toggle(run_id, selected_cluster)
+            else:
+                st.info("Für diesen Cluster wurde noch kein Golden Record erstellt.")
+
+def render_status_toggle(run_id, cluster_id):
+    status_df = get_cluster_status(run_id, engine)
+
+    match = status_df[status_df["cluster_id"] == cluster_id]
+
+    is_done = not match.empty and match.iloc[0]["status"] == "reviewed"
+
+    label = "↩️ Als offen markieren" if is_done else "✅ Als geprüft markieren"
+
+    if st.button(
+        label,
+        key=f"status_btn_reviewed_tab__{cluster_id}",
+        width='stretch'
+    ):
+        new_status = "open" if is_done else "reviewed"
+
+        set_cluster_status(run_id, cluster_id, new_status, engine)
+
+        st.cache_data.clear()
+        st.rerun()
 
 if __name__ == "__main__":
     main()

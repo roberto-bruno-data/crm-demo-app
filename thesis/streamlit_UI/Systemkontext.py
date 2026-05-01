@@ -1,199 +1,289 @@
 import streamlit as st
-from thesis.streamlit_UI.ui_components.auth import require_auth
+from ui_components.auth import require_auth
 from thesis.dirty_crm_data_generator import run_pipeline
 from erlib.db import (
     engine,
     get_latest_run_id,
     initialize_database, 
-    reset_matching_tables
+    reset_matching_tables,
+    initialize_database
     )
-from thesis.streamlit_UI.content.system_context import SYSTEM_CONTEXT_TEXT, SYSTEM_IDEA_TEXT, NAVIGATION_TEXT
-from thesis.streamlit_UI.ui_components.constants import STANDARD_SCHEMA
-from thesis.streamlit_UI.ui_components.theme import apply_theme
+from content.system_context import SYSTEM_CONTEXT_TEXT, SYSTEM_IDEA_TEXT, NAVIGATION_TEXT
+from ui_components.constants import STANDARD_SCHEMA
+from ui_components.theme import apply_theme
 import pandas as pd
-from thesis.streamlit_UI.ui_components.upload_processing import process_uploaded_files, suggest_mapping
-from thesis.streamlit_UI.ui_components.views import render_global_sidebar
+from ui_components.upload_processing import process_uploaded_files, suggest_mapping
+from ui_components.views import render_global_sidebar
 
-def main():
-    st.set_page_config(page_title="System Context & Scope", layout="wide")
+st.set_page_config(page_title="System Context & Scope", layout="wide")
 
-    apply_theme()
-    #require_auth()
+initialize_database(engine)
+apply_theme()
+#require_auth()
 
-    @st.cache_data
-    def load_latest_run(_engine):
-        return get_latest_run_id(_engine)
+@st.cache_data
+def load_latest_run(_engine):
+    return get_latest_run_id(_engine)
 
-    st.title("🔎 Erklärbare Dublettenerkennung")
+st.title("🔎 Erklärbare Dublettenerkennung")
 
-    st.subheader("Systemkontext & Evaluationsrahmen")
+st.subheader("Systemkontext & Evaluationsrahmen")
 
-    render_global_sidebar()
+render_global_sidebar()
 
-    col1, col2 = st.columns([1, 2])
+col1, col2 = st.columns([1, 2])
+    
+with col1:
+    st.markdown(
+        """
+        <div style="
+            min-height: 29px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+        ">
+        """,
+        unsafe_allow_html=True
+    )
+    if st.button("🚀 Demo starten"):
+        st.session_state.df_harmonized = None
         
-    with col1:
-        st.markdown(
-            """
-            <div style="
-                min-height: 29px;
-                display: flex;
-                flex-direction: column;
-                justify-content: flex-start;
-            ">
-            """,
-            unsafe_allow_html=True
+        with st.spinner("Pipeline läuft..."):
+            st.session_state.run_id = run_pipeline(engine, reset=True)
+
+        st.cache_data.clear()
+
+        run_id = load_latest_run(engine)
+
+        if run_id:
+            st.success(f"Run abgeschlossen: {run_id[:8]}")
+
+        st.rerun()
+    st.caption("")
+    st.caption("Daten generieren")
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
+with col2:
+    uploaded_files = st.file_uploader(
+        " ",
+        type=["csv"],
+        accept_multiple_files=True
+    )
+    st.caption("Max. 200 MB pro Datei • CSV-Format")
+    st.caption("Unterstützt mehrere CSV-Dateien aus unterschiedlichen Systemen")
+    if uploaded_files:
+
+        st.subheader("📊 Datenvorschau")
+
+        # 👉 Dateien einmal einlesen (Performance)
+        dfs = []
+        for f in uploaded_files:
+            try:
+                f.seek(0)
+                dfs.append(pd.read_csv(f))
+            except:
+                st.warning(f"{f.name} konnte nicht geladen werden")
+
+        n_rows = st.slider("Anzahl angezeigter Zeilen", 1, 20, 5)
+
+        # 👉 Fall 1: Nur eine Datei
+        if len(dfs) == 1:
+            df = dfs[0]
+            file = uploaded_files[0]
+
+            st.markdown(f"**{file.name}**")
+            st.dataframe(df.head(n_rows), width='stretch')
+
+            st.caption("Einzelne Datenquelle – Mapping erfolgt auf Basis dieser Struktur.")
+
+        # 👉 Fall 2: Mehrere Dateien → Vergleich
+        else:
+            st.subheader("🔍 Vergleich unterschiedlicher Quellschemata")
+
+            st.info(
+                "Die Datenquellen weisen unterschiedliche Strukturen auf "
+                "(z. B. aggregierte vs. atomare Attribute). "
+                "Diese werden im nächsten Schritt harmonisiert."
+            )
+
+            # Tabs mit Dateinamen
+            tabs = st.tabs([file.name for file in uploaded_files])
+
+            for tab, df, file in zip(tabs, dfs, uploaded_files):
+                with tab:
+                    st.dataframe(df.head(n_rows), width='stretch')
+
+                    st.write("**Spaltenstruktur:**")
+                    st.write(", ".join(df.columns))
+
+            if len(dfs) > 1:
+                schema_diff = [set(df.columns) for df in dfs]
+
+                common = set.intersection(*schema_diff)
+                all_cols = set.union(*schema_diff)
+
+                st.markdown("**Gemeinsame Spalten:**")
+                st.write(", ".join(sorted(common)))
+
+                st.markdown("**Unterschiedliche Spalten:**")
+                st.write(", ".join(sorted(all_cols - common)))
+
+        st.success(f"{len(uploaded_files)} Datenquelle(n) erkannt")
+                    
+    if uploaded_files:
+        st.session_state.run_id = None
+
+        # 👉 Vorschau: erste Datei
+        if not dfs:
+            st.error("Keine gültigen Daten geladen")
+            st.stop()
+
+        preview_df = dfs[0]
+        st.markdown("---")
+        st.subheader("🧩 Harmonisierung der Datenschemata")
+
+        st.info(
+            "Die unterschiedlichen Quellstrukturen werden nun in ein einheitliches Zielschema überführt."
         )
-        if st.button("🚀 Demo starten"):
-            st.session_state.df_harmonized = None
-            
-            with st.spinner("Pipeline läuft..."):
-                st.session_state.run_id = run_pipeline(engine, reset=True)
 
-            st.cache_data.clear()
+        st.subheader("🧩 Spalten-Mapping")
 
-            run_id = load_latest_run(engine)
-
-            if run_id:
-                st.success(f"Run abgeschlossen: {run_id[:8]}")
-
-            st.rerun()
-        st.caption("")
-        st.caption("Daten generieren")
-
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    with col2:
-        uploaded_files = st.file_uploader(
-            " ",
-            type=["csv"],
-            accept_multiple_files=True
+        st.caption(
+            "Die Zuordnung erfolgt pro Datenquelle, da unterschiedliche Schemas vorliegen können."
         )
-        st.caption("Max. 200 MB pro Datei • CSV-Format")
-        st.caption("Unterstützt mehrere CSV-Dateien aus unterschiedlichen Systemen")
-        
-        if uploaded_files:
-            st.session_state.run_id = None
 
-            # 👉 Vorschau: erste Datei
-            preview_df = pd.read_csv(uploaded_files[0])
+        mapping = {}
 
-            st.subheader("🔍 Vorschau (erste Datei)")
-            st.caption("Mapping basiert auf erster Datei – alle Dateien sollten ähnliche Struktur haben.")
-            st.dataframe(preview_df.head(), width='stretch')
+        for std_col in STANDARD_SCHEMA:
+            st.markdown(f"### {std_col}")
 
-            st.subheader("🧩 Spalten-Mapping")
+            mapping[std_col] = {}
 
-            mapping = {}
+            for i, file in enumerate(uploaded_files):
+                df = dfs[i]
 
-            for col in STANDARD_SCHEMA:
-                options = ["-- nicht vorhanden --"] + list(preview_df.columns)
-                default = suggest_mapping(col, preview_df.columns)
+                options = ["-- nicht vorhanden --"] + list(df.columns)
 
-                mapping[col] = st.selectbox(
-                    f"{col}",
+                default = suggest_mapping(std_col, df.columns)
+
+                if default != "-- nicht vorhanden --":
+                    index = options.index(default)
+                else:
+                    index = 0
+
+                selected = st.selectbox(
+                    f"Quelle {i+1} ({file.name})",
                     options=options,
-                    index=options.index(default) if default in options else 0,
-                    key=f"map_{col}"
+                    index=index,
+                    key=f"{std_col}_{i}"
                 )
 
-            st.info("Das System erkennt und korrigiert typische Formatabweichungen automatisch.")
+                mapping[std_col][i] = selected
 
-            # 👉 EIN Button
-            if st.button("➡️ Daten harmonisieren"):
+        st.info("Das System erkennt und korrigiert typische Formatabweichungen automatisch.")
 
-                rename_dict = {
-                    v: k for k, v in mapping.items()
-                    if v != "-- nicht vorhanden --"
-                }
+        # 👉 EIN Button
+        if st.button("➡️ Daten harmonisieren"):
 
-                if not rename_dict:
-                    st.error("Bitte mindestens eine Spalte zuordnen.")
-                    st.stop()
+            mapping_per_file = {}
 
-                st.session_state.rename_dict = rename_dict
+            for std_col, file_map in mapping.items():
+                for file_idx, selected_col in file_map.items():
 
-                df_harmonized = process_uploaded_files(uploaded_files, rename_dict)
+                    if selected_col == "-- nicht vorhanden --":
+                        continue
 
-                # fehlende Spalten ergänzen
-                for col in STANDARD_SCHEMA:
-                    if col not in df_harmonized.columns:
-                        df_harmonized[col] = None
+                    if file_idx not in mapping_per_file:
+                        mapping_per_file[file_idx] = {}
 
-                st.session_state.df_harmonized = df_harmonized
+                    mapping_per_file[file_idx][selected_col] = std_col
 
-                st.success(f"{len(uploaded_files)} Dateien kombiniert")
+            if not mapping_per_file:
+                st.error("Bitte mindestens eine Spalte zuordnen.")
+                st.stop()
 
-            # 👉 Vorschau nach Mapping
-            if "df_harmonized" in st.session_state:
-                st.subheader("🔍 Harmonisiert")
-                if st.session_state.df_harmonized is not None:
-                    st.dataframe(st.session_state.df_harmonized.head(), width='stretch')
+            st.session_state.mapping_per_file = mapping_per_file
 
-                if st.button("🚀 Pipeline starten"):
-                    with st.spinner("Pipeline läuft..."):
-                        st.session_state.run_id = run_pipeline(
-                            engine,
-                            input_df=st.session_state.df_harmonized,
-                            reset=True
-                        )
+            df_harmonized = process_uploaded_files(uploaded_files, mapping_per_file)
 
-                    st.success(f"Run abgeschlossen: {st.session_state.run_id[:8]}")
+            for col in STANDARD_SCHEMA:
+                if col not in df_harmonized.columns:
+                    df_harmonized[col] = None
 
-                rename_dict = st.session_state.get("rename_dict", {})
+            st.session_state.df_harmonized = df_harmonized
 
-                mapped_cols = list(rename_dict.values())
-                TECH_COLS = ["entity_id", "source", "cluster_id", "is_duplicated"]
+            st.success(f"{len(uploaded_files)} Dateien kombiniert")
 
-                all_columns = set()
-                for f in uploaded_files:
-                    f.seek(0)
-                    all_columns.update(pd.read_csv(f, nrows=0).columns)
+        # 👉 Vorschau nach Mapping
+        if "df_harmonized" in st.session_state:
+            st.subheader("🔍 Harmonisiert")
+            if st.session_state.df_harmonized is not None:
+                st.dataframe(st.session_state.df_harmonized.head(), width='stretch')
 
-                options = ["-- nicht vorhanden --"] + sorted(all_columns)
+            if st.button("🚀 Pipeline starten"):
+                with st.spinner("Pipeline läuft..."):
+                    st.session_state.run_id = run_pipeline(
+                        engine,
+                        input_df=st.session_state.df_harmonized,
+                        reset=True
+                    )
 
-                unused_cols = [
-                    c for c in all_columns
-                    if c not in rename_dict.keys()
-                ]
+                st.success(f"Run abgeschlossen: {st.session_state.run_id[:8]}")
 
-                if unused_cols:
-                    st.info(f"Ignorierte Spalten: {', '.join(unused_cols)}")
-                
-                missing = [col for col in STANDARD_SCHEMA if col not in rename_dict.values()]
+            TECH_COLS = ["entity_id", "source", "cluster_id", "is_duplicated"]
 
-                if missing:
-                    st.warning(f"Fehlende Felder: {', '.join(missing)}")
+            all_columns = set()
+            
+            for df in dfs:
+                all_columns.update(df.columns)
 
-        if uploaded_files:
-            st.info(f"{len(uploaded_files)} Datenquellen integriert")
-            st.rerun()
+            options = ["-- nicht vorhanden --"] + sorted(all_columns)
 
-    if st.button("Existierende Daten löschen"):
-        st.session_state.run_id = None
-        reset_matching_tables(engine)
-        initialize_database(engine)
-        st.rerun()
+            mapping_per_file = st.session_state.get("mapping_per_file", {})
 
-    st.markdown("---")
+            used_cols = set()
+            for file_map in mapping_per_file.values():
+                used_cols.update(file_map.keys())
 
-    st.markdown(SYSTEM_CONTEXT_TEXT)
+            unused_cols = [c for c in all_columns if c not in used_cols]
 
-    st.markdown(SYSTEM_IDEA_TEXT)
+            if unused_cols:
+                st.info(f"Ignorierte Spalten: {', '.join(unused_cols)}")
+            
+            # missing = [col for col in STANDARD_SCHEMA if col not in rename_dict.values()]
 
-    st.markdown(NAVIGATION_TEXT)
+            # if missing:
+            #     st.warning(f"Fehlende Felder: {', '.join(missing)}")
 
-    st.caption(
-        "Hinweis: Dieses System dient ausschließlich der konzeptionellen Evaluation."
-    )
+    if uploaded_files:
+        st.info(f"{len(uploaded_files)} Datenquellen integriert")
 
-    st.markdown("---")
+if st.button("Existierende Daten löschen"):
+    st.session_state.run_id = None
+    reset_matching_tables(engine)
+    initialize_database(engine)
+    st.rerun()
 
-    col1, col2, col3 = st.columns([3, 2, 3])
+st.markdown("---")
 
-    with col2:
-        if st.button("Overview →"):
-            st.switch_page("pages/1_Overview.py")
+st.markdown(SYSTEM_CONTEXT_TEXT)
+
+st.markdown(SYSTEM_IDEA_TEXT)
+
+st.markdown(NAVIGATION_TEXT)
+
+st.caption(
+    "Hinweis: Dieses System dient ausschließlich der konzeptionellen Evaluation."
+)
+
+st.markdown("---")
+
+col1, col2, col3 = st.columns([3, 2, 3])
+
+with col2:
+    if st.button("Overview →"):
+        st.switch_page("pages/1_Overview.py")
 
 
 # TODO:

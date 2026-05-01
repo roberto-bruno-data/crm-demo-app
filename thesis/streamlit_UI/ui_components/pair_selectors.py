@@ -219,7 +219,7 @@ def handle_manual_input(selected_cluster, attr):
         # 👉 RESET hier erlaubt!
         st.session_state[manual_input_key] = ""
 
-def render_pair_selector(cluster_pairs):
+def render_pair_selector(cluster_pairs, key_suffix="default"):
     cluster_pairs = cluster_pairs.copy()
     cluster_pairs["pair_label"] = cluster_pairs.apply(build_pair_label, axis=1)
 
@@ -228,7 +228,8 @@ def render_pair_selector(cluster_pairs):
     selected_pair_id = st.selectbox(
         "Pair im Cluster anzeigen",
         options=cluster_pairs["pair_id"],
-        format_func=lambda x: pair_map.get(x, x)
+        format_func=lambda x: pair_map.get(x, x),
+        key=f"pair_selector_{key_suffix}"
     )
 
     return selected_pair_id

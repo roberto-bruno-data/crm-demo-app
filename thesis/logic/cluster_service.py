@@ -1,6 +1,5 @@
 from erlib.db import get_clusters, get_resolved_clusters, get_harmonized_entities, engine
 
-from thesis.logic.golden_record_service import resolve_attribute
 import streamlit as st
 from thesis.logic.cluster_metrics import compute_cluster_score
 from thesis.config.preferences import load_preferences
@@ -15,11 +14,10 @@ def render_cluster_metrics_and_merge_section(
     engine,
     review_df,
     cluster_df,
-    cluster_scores_df
-) -> tuple[pd.DataFrame, pd.DataFrame]:
+    cluster_scores_df) -> tuple[pd.DataFrame, pd.DataFrame, float | None]:
 
     if selected_cluster is None:
-        return pd.DataFrame(), pd.DataFrame()
+        return pd.DataFrame(), pd.DataFrame(), None
 
     cluster_entities_df = get_cluster_entities_df_cached(run_id, selected_cluster)
     cluster_entities = cluster_entities_df["entity_id"].tolist()
@@ -31,7 +29,7 @@ def render_cluster_metrics_and_merge_section(
 
     if cluster_pairs.empty:
         st.info("Keine Verbindungen im Cluster vorhanden")
-        return pd.DataFrame(), cluster_entities_df
+        return pd.DataFrame(), cluster_entities_df, None
 
     # --- Compute metrics ---
     cluster_size = cluster_entities_df.shape[0]
@@ -45,14 +43,22 @@ def render_cluster_metrics_and_merge_section(
     # --- MAIN: Cluster quality ---
     st.markdown("#### 📊 Cluster Qualität")
 
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
 
-    with col1:
-        st.metric("Cluster-Score", f"{score:.3f}")
+    col1.metric("Größe", cluster_size)
+    col2.metric("Cluster-Score", f"{score:.3f}")
+    col3.metric("Schwächste Verbindung", f"{cluster_metrics['min']:.2f}")
 
-    with col2:
-        st.metric("Größe", cluster_size)
+    st.caption("Cluster-Score = aggregierte Match-Wahrscheinlichkeit aller Verbindungen im Cluster")
 
+    # --- DETAILS (collapsed) ---
+    with st.expander("🔬 Details (Metriken)"):
+        st.caption(
+            f"Harmonic: {cluster_metrics['harmonic']:.3f} | "
+            f"Mean: {cluster_metrics['mean']:.3f} | "
+            f"Min: {cluster_metrics['min']:.3f} | "
+            f"Coverage: {cluster_metrics['coverage']:.2f}"
+        )
 
     # --- STATUS (main signal) ---
     color, message = classify_cluster(cluster_metrics)
@@ -64,38 +70,7 @@ def render_cluster_metrics_and_merge_section(
     else:
         st.error(f"❌ {message}")
 
-    # --- AUTO MERGE DECISION ---
-    st.markdown("#### ⚡ Auto-Merge")
-
-    can_merge = score >= threshold
-
-    label = f"⚡ Auto-Merge (≥ {threshold:.2f})"
-
-    st.write("") 
-    
-    if st.button(
-        label,
-        type="primary",
-        disabled=not can_merge
-    ):
-        auto_merge_cluster(
-            selected_cluster,
-            cluster_entities_df,
-            ATTRIBUTES
-        )
-        st.success("Auto-Merge durchgeführt")
-        st.rerun()
-
-    # --- DETAILS (collapsed) ---
-    with st.expander("🔬 Details (Metriken)"):
-        st.caption(
-            f"Harmonic: {cluster_metrics['harmonic']:.3f} | "
-            f"Mean: {cluster_metrics['mean']:.3f} | "
-            f"Min: {cluster_metrics['min']:.3f} | "
-            f"Coverage: {cluster_metrics['coverage']:.2f}"
-        )
-
-    return cluster_pairs, cluster_entities_df
+    return cluster_pairs, cluster_entities_df, score
 
 @st.cache_data(show_spinner=False)
 def get_cluster_entities_df_cached(run_id: str, cluster_id: int):
@@ -132,7 +107,7 @@ def format_cluster_with_names(cid, cluster_scores_df, cluster_with_names):
 
     names_str = ", ".join(names) if len(names) > 0 else "–"
 
-    return f"{icon} {row['size']} • {row['score']:.2f} • {names_str}"
+    return f"{icon} Cluster #{cid} · {row['size']} Datensätze · Score {row['score']:.2f} · {names_str}"
 
 def classify_cluster(metrics):
     harmonic = metrics["harmonic"]
@@ -150,18 +125,6 @@ def classify_cluster(metrics):
         return "yellow", "Überwiegend konsistent, aber prüfen"
 
     return "red", "Cluster inkonsistent"
-
-def auto_merge_cluster(cluster_id, cluster_entities_df, attributes):
-    for attr in attributes:
-        values = cluster_entities_df[attr].tolist()
-
-        value, locked = resolve_attribute(values)
-
-        # 👉 Werte in Session State setzen (dein bestehendes Schema!)
-        st.session_state[f"value__{cluster_id}__{attr}"] = value
-
-        if locked:
-            st.session_state[f"user_lock__{cluster_id}__{attr}"] = True
 
 def get_open_clusters(run_id: str, engine):
     cluster_df = get_clusters(run_id, engine)

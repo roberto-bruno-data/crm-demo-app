@@ -27,13 +27,13 @@ NS_SCHEMA = {
 }
 
 apply_theme()
-require_auth()
+#require_auth()
 
 @st.cache_data
 def load_data(run_id, _engine):
     return get_golden_records(run_id, _engine)
 
-_ , _ = render_global_sidebar()
+render_global_sidebar()
 
 st.title("🏆 Golden Records")
 

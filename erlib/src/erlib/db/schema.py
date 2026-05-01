@@ -62,7 +62,7 @@ def initialize_database(engine):
     """
 
     create_review_queue = """
-    CREATE OR REPLACE VIEW vw_review_queue AS
+    CREATE VIEW vw_review_queue AS
     SELECT
     pf.pair_id,
     pf.run_id,
@@ -96,8 +96,7 @@ def initialize_database(engine):
 
     -- explanations
     pf.similarity_sentence,
-    pf.detailed_explanation,
-    pf.feature_contributions
+    pf.detailed_explanation
 
     FROM pair_features pf
     JOIN candidate_pairs cp 
@@ -131,10 +130,24 @@ def initialize_database(engine):
     );
     """
 
+    cluster_status = """
+        CREATE TABLE IF NOT EXISTS cluster_status (
+        run_id TEXT,
+        cluster_id INTEGER,
+        status TEXT,  -- 'open', 'reviewed'
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (run_id, cluster_id)
+    );"""
+
     with engine.begin() as conn:
         conn.execute(text(create_harmonized_entities))
         conn.execute(text(create_candidate_pairs))
         conn.execute(text(create_pair_features))
         conn.execute(text(entity_clusters))
-        conn.execute(text(create_review_queue))
         conn.execute(text(golden_records))
+        conn.execute(text(cluster_status))
+
+    # 👉 separate transaction for view
+    with engine.begin() as conn:
+        conn.execute(text("DROP VIEW IF EXISTS vw_review_queue"))
+        conn.execute(text(create_review_queue))

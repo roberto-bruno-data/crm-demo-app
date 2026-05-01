@@ -24,4 +24,4 @@ def clean_csv(file_path):
 
 # 👉 Example usage
 if __name__ == "__main__":
-    clean_csv("data/results/crm_demo_alt.csv")
+    clean_csv("data/results/crm_demo_schema_diff.csv")

@@ -23,7 +23,7 @@ def get_harmonized_entities(run_id, engine):
         """
     return pd.read_sql(query, engine, params=(run_id,))
 
-def get_review_queue(run_id: str, engine):
+def get_review_queue(run_id, engine):
 
     base_query = """
         SELECT rq.*, ec_a.cluster_id
@@ -173,6 +173,16 @@ def get_resolved_clusters(run_id, engine):
         """)
     
     return pd.read_sql(query, engine, params={"run_id": run_id})["cluster_id"].tolist()
+
+def get_cluster_status(run_id, engine):
+    query = """
+        SELECT *
+        FROM cluster_status
+        WHERE run_id = %s
+        GROUP BY run_id, cluster_id
+    """
+    df = pd.read_sql(query, engine, params=(run_id,))
+    return df
 
 def get_all_data(run_id, engine):
     return {
