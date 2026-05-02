@@ -2,16 +2,16 @@ import pandas as pd
 from pathlib import Path
 import yaml
 import streamlit as st
-from ui_components.constants import UI_RENAME
+from thesis.streamlit_UI.ui_components.constants import UI_RENAME
 from erlib.db import engine, get_latest_run_id, get_harmonized_entities, get_review_queue, get_resolved_count, load_pairs_from_db, get_resolved_cluster_ids
 from thesis.logic.cluster_service import get_cluster_entities_df, get_clusters, format_cluster_with_names
 from thesis.logic.cluster_metrics import compute_cluster_score
 from thesis.logic.helpers import render_divider, is_attr_locked
-from ui_components.pair_selectors import render_cluster_attribute, render_pair_selector, get_selected_pair
-from ui_components.record_preparation import prepare_records, build_model_info
+from thesis.streamlit_UI.ui_components.pair_selectors import render_cluster_attribute, render_pair_selector, get_selected_pair
+from thesis.streamlit_UI.ui_components.record_preparation import prepare_records, build_model_info
 from erlib.utils.constants import ATTRIBUTES
 from thesis.logic.golden_record_service import build_golden_record
-from ui_components.golden_record import render_golden_record_panel, get_cluster_status
+from thesis.streamlit_UI.ui_components.golden_record import render_golden_record_panel, get_cluster_status
 from thesis.config.preferences import load_preferences, save_preferences
 from thesis.logic.golden_record_service import resolve_attribute
 
