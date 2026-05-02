@@ -29,6 +29,11 @@ engine = create_engine(
 def init_db():
     initialize_database(engine)
 
+@st.cache_data
+def load_csv(file):
+    file.seek(0)
+    return pd.read_csv(file)
+
 init_db()
 
 apply_theme()
@@ -89,14 +94,7 @@ with col2:
 
         st.subheader("📊 Datenvorschau")
 
-        # 👉 Dateien einmal einlesen (Performance)
-        dfs = []
-        for f in uploaded_files:
-            try:
-                f.seek(0)
-                dfs.append(pd.read_csv(f))
-            except:
-                st.warning(f"{f.name} konnte nicht geladen werden")
+        dfs = [load_csv(f) for f in uploaded_files]
 
         n_rows = st.slider("Anzahl angezeigter Zeilen", 1, 20, 5)
 
