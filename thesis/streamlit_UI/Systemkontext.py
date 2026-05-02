@@ -8,12 +8,12 @@ from erlib.db import (
     reset_matching_tables,
     initialize_database
     )
-from content.system_context import SYSTEM_CONTEXT_TEXT, SYSTEM_IDEA_TEXT, NAVIGATION_TEXT
-from ui_components.constants import STANDARD_SCHEMA
-from ui_components.theme import apply_theme
+from thesis.streamlit_UI.content.system_context import SYSTEM_CONTEXT_TEXT, SYSTEM_IDEA_TEXT, NAVIGATION_TEXT
+from thesis.streamlit_UI.ui_components.constants import STANDARD_SCHEMA
+from thesis.streamlit_UI.ui_components.theme import apply_theme
 import pandas as pd
-from ui_components.upload_processing import process_uploaded_files, suggest_mapping
-from ui_components.views import render_global_sidebar
+from thesis.streamlit_UI.ui_components.upload_processing import process_uploaded_files, suggest_mapping
+from thesis.streamlit_UI.ui_components.views import render_global_sidebar
 
 st.set_page_config(page_title="System Context & Scope", layout="wide")
 
