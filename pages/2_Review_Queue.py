@@ -59,7 +59,7 @@ def main():
     st.title("Dublettenerkennung")
     st.caption("Review von Entity-Clustern")
 
-    tab_open, tab_reviewed = st.tabs(["🟢 Offene Cluster ({:.1%})".format(progress), "✅ Geprüfte Cluster ({:.1%})".format(reverse_progress)])
+    tab_open, tab_reviewed = st.tabs(["🟢 Offene Cluster ({:.1%})".format(reverse_progress), "✅ Geprüfte Cluster ({:.1%})".format(progress)])
 
     run_id = get_latest_run_id(engine)
     effective_threshold, auto_merge_threshold = render_global_sidebar()
