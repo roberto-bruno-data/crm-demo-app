@@ -32,8 +32,12 @@ def load_data(run_id, _engine):
     return {
         "review_df": review_df,
         "resolved_count": get_resolved_count(run_id, _engine),
-        "total_candidates": len(load_pairs_from_db(run_id, _engine))
+        "total_candidates": get_candidate_count(run_id, _engine)
     }
+
+def get_candidate_count(run_id, engine):
+    query = "SELECT COUNT(*) FROM candidate_pairs WHERE run_id = %s"
+    return pd.read_sql(query, engine, params=(run_id,)).iloc[0,0]
 
 def load_config():
     config_path = Path(__file__).resolve().parents[1] / "ui_components" / "preferences.yaml"
@@ -43,6 +47,21 @@ def load_config():
 
 def get_default_source(attr, settings):
     return settings.get(attr)
+
+def get_all_review_data(run_id):
+    # --- BASE: alle Daten (für Fortschritt) ---
+    status_df = get_cluster_status(run_id, engine)
+    all_review_df = get_review_queue(run_id, engine)
+
+    all_review_df = all_review_df.merge(
+        status_df[["cluster_id", "status"]],
+        on="cluster_id",
+        how="left"
+    )
+
+    all_review_df["status"] = all_review_df["status"].fillna("open")
+
+    return all_review_df
 
 def render_model_section(model_info, selected_row=None):
     st.markdown("---")

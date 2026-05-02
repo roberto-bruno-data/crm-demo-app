@@ -15,13 +15,15 @@ from thesis.streamlit_UI.ui_components.views import (
     get_selected_pair,
     render_model_section,
     render_divider,
-    get_cluster_status
+    get_cluster_status,
+    get_all_review_data
 )
 from thesis.logic.golden_record_service import set_cluster_status 
 from thesis.streamlit_UI.ui_components.theme import apply_theme
-from thesis.logic.cluster_service import render_cluster_metrics_and_merge_section
+from thesis.logic.cluster_service import render_cluster_metrics_and_merge_section, get_cluster_progress
 import pandas as pd
 from thesis.streamlit_UI.ui_components.record_preparation import prepare_records, build_model_info
+from thesis.logic.cluster_service import render_cluster_view
 
 st.set_page_config(
     layout="wide",
@@ -48,13 +50,16 @@ def load_cluster_data(run_id, demo_mode):
     return setup_cluster_data(run_id, engine, demo_mode)
 
 def main():
-    # require_auth()
+    all_review_data = get_all_review_data(get_latest_run_id(engine))
+    _, _, progress = get_cluster_progress(all_review_data)
+    reverse_progress = 1 - progress
+    require_auth()
     apply_theme()
 
     st.title("Dublettenerkennung")
     st.caption("Review von Entity-Clustern")
 
-    tab_open, tab_reviewed = st.tabs(["🟢 Offene Cluster", "✅ Geprüfte Cluster"])
+    tab_open, tab_reviewed = st.tabs(["🟢 Offene Cluster ({:.1%})".format(progress), "✅ Geprüfte Cluster ({:.1%})".format(reverse_progress)])
 
     run_id = get_latest_run_id(engine)
     effective_threshold, auto_merge_threshold = render_global_sidebar()
