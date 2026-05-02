@@ -1,5 +1,5 @@
 import streamlit as st
-from ui_components.auth import require_auth
+from thesis.streamlit_UI.ui_components.auth import require_auth
 from thesis.dirty_crm_data_generator import run_pipeline
 from erlib.db import (
     engine,
