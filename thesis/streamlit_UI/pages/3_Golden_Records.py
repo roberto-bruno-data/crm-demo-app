@@ -27,7 +27,7 @@ NS_SCHEMA = {
 }
 
 apply_theme()
-#require_auth()
+require_auth()
 
 @st.cache_data
 def load_data(run_id, _engine):
