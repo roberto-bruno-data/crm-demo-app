@@ -25,7 +25,12 @@ engine = create_engine(
     connect_args={"sslmode": "require"}
 )
 
-initialize_database(engine)
+@st.cache_resource
+def init_db():
+    initialize_database(engine)
+
+init_db()
+
 apply_theme()
 require_auth()
 
